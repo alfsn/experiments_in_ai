@@ -1,0 +1,147 @@
+from functools import partial
+import numpy as np
+from numpy.random import normal, seed, uniform
+import matplotlib.pyplot as plt
+import torch
+from ipywidgets import interact
+
+np.random.seed(42)
+
+def quadratic(a,b,c,x):
+    return a*x**2 + b*x + c
+
+def partial_quad(a,b,c):
+    return partial(quadratic, a, b, c)
+
+quadratic(2, 2, 2, 2)
+
+f = partial_quad(2,2,2)
+f(2)
+
+def noise(x, scale):
+    return normal(scale=scale, size=x.shape)
+
+def add_noise(x, mult, add):
+    return x * (1 + noise(x, mult)) + noise(x, add)
+
+x = torch.linspace(-2, 2, 20)[:,None]
+y = add_noise(f(x), 0.3, 1.5)
+plt.scatter(x, y)
+
+def mse(pred, actual): 
+    return ((pred-actual)**2).mean()
+
+loss = mse(f(x), y)
+loss
+
+@interact(a=1.5, b=1.5, c=1.5)
+def plot_quad(a,b,c):
+    f=partial_quad(a,b,c)
+    plt.scatter(x, y)
+    plt.plot(x, f(x))
+    loss = mse(f(x), y)
+    plt.title(f"MSE = {loss:.2f}")
+
+def quad_mse(params):
+    f = partial_quad(*params)
+    return mse(f(x), y)
+
+quad_mse([1.5,1.5,1.5])
+
+abc=torch.tensor([1.5,1.5,1.5])
+
+abc.requires_grad_(True) 
+
+loss = quad_mse(abc)
+loss
+
+loss.backward()
+
+abc.grad
+
+with torch.no_grad(): 
+    # esto hace que no calcule el gradiente del tensor durante este bloque de código
+    abc = abc - abc.grad*0.01 
+    loss = quad_mse(abc)
+
+print("loss ", loss)
+
+abc.requires_grad_(True)
+
+loss
+
+for i in range(20):
+    loss = quad_mse(abc.requires_grad_(True))
+    loss.backward()
+    with torch.no_grad():
+        abc = abc - abc.grad*0.01
+    print(f"Paso {i}, pérdida={loss:.2f}")
+
+abc
+
+def rectified_linear(m, b, x):
+    y = m * x + b
+    # esta es una funcion lineal
+    return torch.clip(y, 0.) # clip hace que todo lo que sea negativo se haga cero
+
+plt.plot(x, partial(rectified_linear, 1, 1)(x))
+
+def double_relu(m1, m2, b1, b2, x):
+    return rectified_linear(m1, b1, x) + rectified_linear(m2, b2, x)
+
+@interact(m1=1.5, m2=1.5, b1=1.5, b2=1.5)
+def plot_double_relu(m1, m2, b1, b2):
+    plt.plot(x, partial(double_relu, m1, m2, b1, b2)(x))
+
+n_relus=5
+params_by_relu = 2
+
+beta = np.random.rand(n_relus, params_by_relu) - 0.5
+# inicializo random cerca de cero
+beta = torch.from_numpy(beta)
+beta = beta.to(torch.float32)
+beta
+
+ones = torch.ones(x.shape[0], 1)
+X = torch.cat((x, ones), dim=1)
+X[:5]
+
+E = torch.matmul(X, beta.T)
+E[:5]
+
+E_r = torch.clip(E, 0)
+E_r[:5]
+
+Y_hat = torch.sum(E_r, dim=1)
+Y_hat[:5]
+
+mse(actual=y, pred=Y_hat)
+
+beta.requires_grad_(True)
+beta
+
+beta = np.random.rand(n_relus, params_by_relu) - 0.5
+# inicializo random cerca de cero
+beta = torch.from_numpy(beta)
+beta = beta.to(torch.float32)
+
+for i in range(1,51):
+    beta.requires_grad_(True)
+
+    E = torch.matmul(X, beta.T)
+    E_r = torch.clip(E, 0)
+    Y_hat = torch.sum(E_r, dim=1)
+
+    loss = mse(pred=Y_hat, actual=y)
+    
+    loss.backward(retain_graph=True)
+
+    with torch.no_grad():
+        beta = beta - beta.grad*0.01
+
+    if i%5==0:
+        print(f"Paso {i}, pérdida={loss:.2f}")
+
+plt.plot(x, Y_hat.detach(), label='pred')
+plt.scatter(x, y, c='black')
+plt.legend()

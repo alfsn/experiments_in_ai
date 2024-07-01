@@ -1,0 +1,103 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+
+np.random.seed(42)
+
+from datasets import load_dataset
+import evaluate
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, TrainingArguments, Trainer, DataCollatorWithPadding
+
+
+dataset = load_dataset("glue", "mrpc", split="train")
+vdataset = load_dataset("glue", "mrpc", split="validation")
+
+for feature in dataset.features.keys():
+    print(feature)
+    print(dataset[feature][:2])
+    print()
+
+id2label = {0: "NEGATIVE", 1: "POSITIVE"}
+label2id = {"NEGATIVE": 0, "POSITIVE": 1}
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    "bert-base-uncased", 
+    num_labels=2, 
+    id2label=id2label, 
+    label2id=label2id)
+
+for name, value in model.named_parameters():
+    print(name)
+
+model.can_generate()
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+list(tokenizer.get_vocab().keys())[-10:]
+
+tokenizer.decode(token_ids=2000)
+
+tokenizer.encode(text='to')
+
+data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+def encode(examples):
+    return tokenizer(
+        examples["sentence1"], 
+        examples["sentence2"], 
+        truncation=True, 
+        padding="max_length"
+        )
+
+dataset = dataset.map(encode, batched=True)
+vdataset = vdataset.map(encode, batched=True)
+
+dataset = dataset.map(lambda examples: {"labels": examples["label"]}, batched=True)
+vdataset = vdataset.map(lambda examples: {"labels": examples["label"]}, batched=True)
+
+dataset.set_format(type="torch", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+vdataset.set_format(type="torch", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+
+
+print(dataset["input_ids"][:2])
+
+print(dataset["token_type_ids"][:2])
+
+print(dataset["attention_mask"][:2])
+
+len(dataset["attention_mask"][2])
+
+#Aca iria dataloader = torch.utils.data.DataLoader(dataset, batch_size=32)
+
+accuracy = evaluate.load("accuracy")
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    return accuracy.compute(predictions=predictions, references=labels)
+
+training_args = TrainingArguments(
+    output_dir="GLUEBERT",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=16,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    load_best_model_at_end=True
+)
+
+dataset.split
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+    eval_dataset=vdataset,
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+
+trainer.train()
