@@ -3,3 +3,7 @@ evaluate
 transformers
 pytorch
 numpy
+langchain
+langchain-community
+langchain-openai
+openai
