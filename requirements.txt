@@ -1,5 +1,6 @@
+numpy
+pytorch
 datasets
 evaluate
 transformers
-pytorch
-numpy
+transformers[torch]
