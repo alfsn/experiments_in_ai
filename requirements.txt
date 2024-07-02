@@ -1,3 +1,5 @@
+numpy
+pytorch
 datasets
 evaluate
 transformers
@@ -7,3 +9,4 @@ langchain
 langchain-community
 langchain-openai
 openai
+transformers[torch]
