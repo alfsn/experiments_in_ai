@@ -10,3 +10,6 @@ langchain-community
 langchain-openai
 openai
 transformers[torch]
+fastapi 
+llama-cpp-python 
+gpt4all
