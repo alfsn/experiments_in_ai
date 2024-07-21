@@ -1,1 +1,7 @@
 .env
+*.json
+*.bin
+*.pth
+*.safetensors
+*.0
+*.pt
