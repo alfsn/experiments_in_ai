@@ -17,9 +17,6 @@ from langchain.prompts import PromptTemplate
 from langchain import LLMChain
 from langchain_openai import OpenAI
 from langchain.tools import DuckDuckGoSearchRun
-from langchain.schema import AgentAction, AgentFinish
-from langchain.agents.output_parsers import ReActSingleInputOutputParser
-from langchain.agents.format_scratchpad import format_log_to_str
 from langchain.agents import create_react_agent
 from langchain.prompts import ChatPromptTemplate
 
@@ -153,24 +150,36 @@ agent_executor = AgentExecutor.from_agent_and_tools(
 )
 
 
-# In[13]:
+# In[18]:
 
 
 def analyze_stock(ticker):
-    query = f"Latest news about {ticker} stock"
-    result = agent_executor.invoke({"input": query})
-    return result["output"]
+    query = f"What are the latest news headlines about {ticker} stock?"
+    
+    search_results = search.run(query)    
+    result = agent_executor.invoke({"input": f"Analyze these news headlines about {ticker} stock: {search_results} and emit a final answer which recommends either a BUY, a HOLD or a SELL rating"})
+    
+    return search_results, result["output"]
 
 
-# In[14]:
+# In[19]:
 
 
 if __name__ == "__main__":
     ticker = input("Enter a stock ticker symbol: ")
     try:
-        analysis = analyze_stock(ticker)
+        raw_news, analysis = analyze_stock(ticker)
+        print("Raw search results:")
+        print(raw_news)
+        print("\nAgent's analysis:")
         print(analysis)
     except Exception as e:
         print(f"An error occurred: {e}")
         print("Please check your API key and network connection.")
+
+
+# In[ ]:
+
+
+
 
