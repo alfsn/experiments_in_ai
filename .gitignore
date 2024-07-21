@@ -5,3 +5,5 @@
 *.safetensors
 *.0
 *.pt
+GLUEBERT/checkpoint-459/vocab.txt
+GLUEBERT/checkpoint-918/vocab.txt
